@@ -1,0 +1,23 @@
+@model SchoolSocialApp.Models.SchoolClass
+
+@{
+    ViewData["Title"] = "My Class";
+}
+
+<h2>@Model.Name</h2>
+<p>@Model.Description</p>
+
+@if (Model.ClassSetting != null)
+{
+    <div class="alert alert-info">Class mode: <strong>@(Model.ClassSetting.IsPostingAllowed ? "Posting enabled" : "Posting disabled")</strong></div>
+}
+
+<h4>Class Members</h4>
+<ul class="list-group mb-4">
+    @foreach (var member in Model.Members)
+    {
+        <li class="list-group-item">@member.FullName (@member.Email)</li>
+    }
+</ul>
+
+<p><a class="btn btn-primary" asp-action="Settings">Update Class Settings</a></p>

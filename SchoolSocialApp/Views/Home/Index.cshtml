@@ -1,0 +1,62 @@
+@model SchoolSocialApp.Models.HomeIndexViewModel
+
+@{
+    ViewData["Title"] = "Home";
+}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2>Welcome to School Social App</h2>
+                @if (User.Identity?.IsAuthenticated ?? false)
+                {
+                    if (Model.UserClass != null)
+                    {
+                        <p>You are in <strong>@Model.UserClass.Name</strong>.</p>
+                        <p>@Model.ClassSetting?.Description</p>
+                    }
+                    else
+                    {
+                        <p>You're logged in but not assigned to a class yet.</p>
+                    }
+                }
+                else
+                {
+                    <p>This app lets you interact only with your classmates in a private class group.</p>
+                    <p><a asp-area="Identity" asp-page="/Account/Register">Register</a> or <a asp-area="Identity" asp-page="/Account/Login">Login</a> to continue.</p>
+                }
+            </div>
+        </div>
+
+        @if (Model.Posts.Any())
+        {
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h4>Class Feed</h4>
+                    @foreach (var post in Model.Posts)
+                    {
+                        <div class="mb-3 border-bottom pb-3">
+                            <strong>@post.Author?.FullName</strong>
+                            <span class="text-muted">@post.CreatedAt.ToLocalTime().ToString("g")</span>
+                            <p>@post.Message</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5>Get Started</h5>
+                <p>Use the navigation to go to your class page and control class privacy from settings.</p>
+                @if (User.IsInRole("Admin"))
+                {
+                    <p><a asp-controller="Admin" asp-action="Index" class="btn btn-sm btn-secondary">Admin Dashboard</a></p>
+                }
+            </div>
+        </div>
+    </div>
+</div>

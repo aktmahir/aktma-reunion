@@ -1,0 +1,32 @@
+@model IEnumerable<SchoolSocialApp.Models.SchoolClass>
+
+@{
+    ViewData["Title"] = "Admin Dashboard";
+}
+
+<h2>Admin Dashboard</h2>
+<p>Manage classes and review class settings for your school social app.</p>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Class</th>
+            <th>Description</th>
+            <th>Members</th>
+            <th>Posting allowed</th>
+            <th>Sharing allowed</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var cls in Model)
+        {
+            <tr>
+                <td>@cls.Name</td>
+                <td>@cls.Description</td>
+                <td>@cls.Members.Count()</td>
+                <td>@(cls.ClassSetting?.IsPostingAllowed == true ? "Yes" : "No")</td>
+                <td>@(cls.ClassSetting?.CanShareResources == true ? "Yes" : "No")</td>
+            </tr>
+        }
+    </tbody>
+</table>
