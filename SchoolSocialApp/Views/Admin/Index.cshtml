@@ -7,6 +7,8 @@
 <h2>Admin Dashboard</h2>
 <p>Manage classes and review class settings for your school social app.</p>
 
+<p><a asp-action="CreateClass" class="btn btn-primary">Create New Class</a></p>
+
 <table class="table table-striped">
     <thead>
         <tr>
@@ -15,6 +17,7 @@
             <th>Members</th>
             <th>Posting allowed</th>
             <th>Sharing allowed</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -26,6 +29,9 @@
                 <td>@cls.Members.Count()</td>
                 <td>@(cls.ClassSetting?.IsPostingAllowed == true ? "Yes" : "No")</td>
                 <td>@(cls.ClassSetting?.CanShareResources == true ? "Yes" : "No")</td>
+                <td>
+                    <a asp-action="EditClass" asp-route-id="@cls.Id" class="btn btn-sm btn-secondary">Edit</a>
+                </td>
             </tr>
         }
     </tbody>

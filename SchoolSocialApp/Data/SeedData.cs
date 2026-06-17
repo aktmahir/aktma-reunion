@@ -66,13 +66,16 @@ namespace SchoolSocialApp.Data
                     await userManager.UpdateAsync(student);
                 }
 
-                context.Posts.Add(new Post
+                if (student != null)
                 {
-                    AuthorId = student?.Id ?? string.Empty,
-                    ClassId = classA.Id,
-                    Message = "Welcome to our private class social app!",
-                    CreatedAt = DateTime.UtcNow
-                });
+                    context.Posts.Add(new Post
+                    {
+                        AuthorId = student.Id,
+                        ClassId = classA.Id,
+                        Message = "Welcome to our private class social app!",
+                        CreatedAt = DateTime.UtcNow
+                    });
+                }
 
                 await context.SaveChangesAsync();
             }

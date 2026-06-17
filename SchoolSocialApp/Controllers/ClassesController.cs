@@ -73,25 +73,23 @@ namespace SchoolSocialApp.Controllers
                 return Challenge();
             }
 
-            if (!ModelState.IsValid)
-            {
-                var existingSetting = await _context.ClassSettings.FirstOrDefaultAsync(s => s.Id == id);
-                return View(existingSetting ?? model);
-            }
-
             var userClassId = user.SchoolClassId;
-            if (userClassId == null && !User.IsInRole(SeedData.AdminRole))
-            {
-                return NotFound();
-            }
 
-            var setting = User.IsInRole(SeedData.AdminRole)
-                ? await _context.ClassSettings.FirstOrDefaultAsync(s => s.Id == id)
-                : await _context.ClassSettings.FirstOrDefaultAsync(s => s.Id == id && s.ClassId == userClassId!.Value);
+            var setting = await _context.ClassSettings.FirstOrDefaultAsync(s => s.Id == id);
 
             if (setting == null)
             {
                 return NotFound();
+            }
+
+            if (!User.IsInRole(SeedData.AdminRole) && setting.ClassId != userClassId)
+            {
+                return NotFound();
+            }
+
+            if (!ModelState.IsValid)
+            {
+                return View(setting);
             }
 
             setting.IsPostingAllowed = model.IsPostingAllowed;

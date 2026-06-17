@@ -1,0 +1,37 @@
+@model SchoolSocialApp.Models.CreateClassViewModel
+
+@{
+    ViewData["Title"] = "Create Class";
+}
+
+<h2>Create New Class</h2>
+
+<form asp-action="CreateClass" method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label"></label>
+        <input asp-for="Name" class="form-control" required />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Description" class="form-label"></label>
+        <textarea asp-for="Description" class="form-control" rows="3"></textarea>
+        <span asp-validation-for="Description" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="SelectedUserId" class="form-label">Assign User (Optional)</label>
+        <select asp-for="SelectedUserId" class="form-select">
+            <option value="">-- Select a user --</option>
+            @foreach (var user in Model.AvailableUsers)
+            {
+                <option value="@user.Id">@user.FullName (@user.Email)</option>
+            }
+        </select>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Create</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

@@ -29,6 +29,22 @@
             </div>
         </div>
 
+        @if (Model.UserClass != null && Model.ClassSetting?.IsPostingAllowed == true)
+        {
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h4>New Post</h4>
+                    <form asp-controller="Home" asp-action="CreatePost" method="post">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <textarea name="message" class="form-control" rows="3" placeholder="Write a message..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Post</button>
+                    </form>
+                </div>
+            </div>
+        }
+
         @if (Model.Posts.Any())
         {
             <div class="card mb-4">

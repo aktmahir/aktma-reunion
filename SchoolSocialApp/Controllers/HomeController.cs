@@ -54,7 +54,46 @@ namespace SchoolSocialApp.Controllers
             });
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> CreatePost(string message)
+        {
+            var user = await _userManager.GetUserAsync(User);
+            if (user?.SchoolClassId == null)
+            {
+                return RedirectToAction("Index");
+            }
+
+            var classSetting = await _context.ClassSettings
+                .FirstOrDefaultAsync(s => s.ClassId == user.SchoolClassId);
+
+            if (classSetting?.IsPostingAllowed != true)
+            {
+                return RedirectToAction("Index");
+            }
+
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                var post = new Post
+                {
+                    AuthorId = user.Id,
+                    ClassId = user.SchoolClassId.Value,
+                    Message = message.Trim(),
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.Posts.Add(post);
+                await _context.SaveChangesAsync();
+            }
+
+            return RedirectToAction("Index");
+        }
+
         public IActionResult Privacy()
+        {
+            return View();
+        }
+
+        public IActionResult Error()
         {
             return View();
         }

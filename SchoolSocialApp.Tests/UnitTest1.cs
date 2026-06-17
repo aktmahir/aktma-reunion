@@ -151,6 +151,47 @@ public sealed class CriticalPathTests : IAsyncLifetime
         return match.Groups[1].Success ? match.Groups[1].Value : match.Groups[2].Value;
     }
 
+    [Fact]
+    public async Task AuthorizedUserCanCreatePostToTheirClass()
+    {
+        await using var scope = _factory.Services.CreateAsyncScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var user = await userManager.FindByEmailAsync("student@schoolapp.local");
+        Assert.NotNull(user);
+
+        var studentClass = await context.SchoolClasses.SingleAsync();
+        user.SchoolClassId = studentClass.Id;
+        await userManager.UpdateAsync(user);
+
+        var classSetting = await context.ClassSettings.FirstAsync(s => s.ClassId == studentClass.Id);
+        classSetting.IsPostingAllowed = true;
+        await context.SaveChangesAsync();
+
+        var postCountBefore = await context.Posts.CountAsync();
+
+        var post = new Post
+        {
+            AuthorId = user.Id,
+            ClassId = studentClass.Id,
+            Message = "Test post message",
+            CreatedAt = DateTime.UtcNow
+        };
+        context.Posts.Add(post);
+        await context.SaveChangesAsync();
+
+        var postCountAfter = await context.Posts.CountAsync();
+        Assert.True(postCountAfter > postCountBefore);
+
+        var newPost = await context.Posts
+            .Where(p => p.AuthorId == user.Id)
+            .OrderByDescending(p => p.CreatedAt)
+            .FirstOrDefaultAsync();
+        Assert.NotNull(newPost);
+        Assert.Equal("Test post message", newPost!.Message);
+    }
+
     private sealed class TestAppFactory : WebApplicationFactory<Program>
     {
         private readonly SqliteConnection _connection;

@@ -4,3 +4,10 @@
 
 <h2>Oops, something went wrong.</h2>
 <p>An error occurred while processing your request.</p>
+
+@if (ViewData["RequestId"] != null)
+{
+    <p>
+        <strong>Request ID:</strong> <code>@ViewData["RequestId"]</code>
+    </p>
+}
