@@ -38,13 +38,19 @@ namespace SchoolSocialApp.Controllers
         public async Task<IActionResult> Settings()
         {
             var user = await _userManager.GetUserAsync(User);
-            if (user?.SchoolClassId == null)
+            if (user == null)
+            {
+                return Challenge();
+            }
+
+            if (user.SchoolClassId == null && !User.IsInRole(SeedData.AdminRole))
             {
                 return RedirectToAction("Index", "Home");
             }
 
-            var setting = await _context.ClassSettings
-                .FirstOrDefaultAsync(s => s.ClassId == user.SchoolClassId.Value);
+            var setting = User.IsInRole(SeedData.AdminRole) && user.SchoolClassId == null
+                ? await _context.ClassSettings.FirstOrDefaultAsync()
+                : await _context.ClassSettings.FirstOrDefaultAsync(s => s.ClassId == user.SchoolClassId!.Value);
 
             if (setting == null)
             {
@@ -56,20 +62,33 @@ namespace SchoolSocialApp.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Settings(int id, ClassSetting model)
+        public async Task<IActionResult> Settings(
+            int id,
+            [Bind(nameof(ClassSetting.IsPostingAllowed), nameof(ClassSetting.CanShareResources), nameof(ClassSetting.Description))]
+            ClassSetting model)
         {
+            var user = await _userManager.GetUserAsync(User);
+            if (user == null)
+            {
+                return Challenge();
+            }
+
             if (!ModelState.IsValid)
             {
-                return View(model);
+                var existingSetting = await _context.ClassSettings.FirstOrDefaultAsync(s => s.Id == id);
+                return View(existingSetting ?? model);
             }
 
-            var user = await _userManager.GetUserAsync(User);
-            if (user?.SchoolClassId != model.ClassId && !User.IsInRole("Admin"))
+            var userClassId = user.SchoolClassId;
+            if (userClassId == null && !User.IsInRole(SeedData.AdminRole))
             {
-                return Forbid();
+                return NotFound();
             }
 
-            var setting = await _context.ClassSettings.FindAsync(id);
+            var setting = User.IsInRole(SeedData.AdminRole)
+                ? await _context.ClassSettings.FirstOrDefaultAsync(s => s.Id == id)
+                : await _context.ClassSettings.FirstOrDefaultAsync(s => s.Id == id && s.ClassId == userClassId!.Value);
+
             if (setting == null)
             {
                 return NotFound();

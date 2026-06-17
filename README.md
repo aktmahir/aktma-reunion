@@ -56,14 +56,23 @@ dotnet run
 
 ### Seed Accounts
 
-The application includes seeded accounts for local testing:
+Development-only seed accounts are created automatically when running in the Development environment. Passwords are read from environment variables when provided:
 
-- Admin: `admin@schoolapp.local` / `Admin123!`
-- Student: `student@schoolapp.local` / `Student123!`
+- `SeedData__AdminEmail` / `SeedData__AdminPassword`
+- `SeedData__StudentEmail` / `SeedData__StudentPassword`
+- `SeedData__CreateSeedUsers=false` disables seed user creation
+
+If no development passwords are configured, the startup logs print generated strong passwords for the local seed accounts. Do not run seed data in production.
 
 ## Database
 
 The default local database is SQLite. The file is created automatically as `schoolsocialapp.db` when the app runs.
+
+For production deployments, run migrations explicitly before starting the application instead of relying on startup migration:
+
+```powershell
+dotnet ef database update
+```
 
 ## Notes
 
