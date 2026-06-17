@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.UI.Services;
 using Microsoft.EntityFrameworkCore;
 using SchoolSocialApp.Data;
 using SchoolSocialApp.Models;
+using SchoolSocialApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,7 +23,10 @@ builder.Services.AddDefaultIdentity<ApplicationUser>(options =>
     options.Password.RequireNonAlphanumeric = true;
 })
     .AddRoles<IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>();
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders();
+
+builder.Services.AddSingleton<IEmailSender, EmailSender>();
 
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
