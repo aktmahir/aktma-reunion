@@ -171,28 +171,184 @@ public sealed class CriticalPathTests : IAsyncLifetime
 
         var postCountBefore = await context.Posts.CountAsync();
 
-        var post = new Post
+var post = new Post
+            {
+                AuthorId = user.Id,
+                ClassId = studentClass.Id,
+                Message = "Test post message",
+                CreatedAt = DateTime.UtcNow
+            };
+            context.Posts.Add(post);
+            await context.SaveChangesAsync();
+
+            var postCountAfter = await context.Posts.CountAsync();
+            Assert.True(postCountAfter > postCountBefore);
+
+            var newPost = await context.Posts
+                .Where(p => p.AuthorId == user.Id)
+                .OrderByDescending(p => p.CreatedAt)
+                .FirstOrDefaultAsync();
+            Assert.NotNull(newPost);
+            Assert.Equal("Test post message", newPost!.Message);
+        }
+
+        [Fact]
+        public async Task UserCanOnlySeePostsFromTheirClass()
         {
-            AuthorId = user.Id,
-            ClassId = studentClass.Id,
-            Message = "Test post message",
-            CreatedAt = DateTime.UtcNow
-        };
-        context.Posts.Add(post);
-        await context.SaveChangesAsync();
+            await using var scope = _factory.Services.CreateAsyncScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
-        var postCountAfter = await context.Posts.CountAsync();
-        Assert.True(postCountAfter > postCountBefore);
+            var user = await userManager.FindByEmailAsync("student@schoolapp.local");
+            Assert.NotNull(user);
 
-        var newPost = await context.Posts
-            .Where(p => p.AuthorId == user.Id)
-            .OrderByDescending(p => p.CreatedAt)
-            .FirstOrDefaultAsync();
-        Assert.NotNull(newPost);
-        Assert.Equal("Test post message", newPost!.Message);
-    }
+            var studentClass = await context.SchoolClasses.SingleAsync();
+            user.SchoolClassId = studentClass.Id;
+            await userManager.UpdateAsync(user);
 
-    private sealed class TestAppFactory : WebApplicationFactory<Program>
+            var otherClass = new SchoolClass
+            {
+                Name = "10B",
+                Description = "Another class"
+            };
+            context.SchoolClasses.Add(otherClass);
+            await context.SaveChangesAsync();
+
+            var otherPost = new Post
+            {
+                AuthorId = user.Id,
+                ClassId = otherClass.Id,
+                Message = "Should not be visible",
+                CreatedAt = DateTime.UtcNow
+            };
+            context.Posts.Add(otherPost);
+            await context.SaveChangesAsync();
+
+            var client = await CreateAuthenticatedClientAsync(_factory, "student@schoolapp.local");
+            var homeResponse = await client.GetAsync("/");
+            homeResponse.EnsureSuccessStatusCode();
+
+            var html = await homeResponse.Content.ReadAsStringAsync();
+            Assert.DoesNotContain("Should not be visible", html);
+        }
+
+        [Fact]
+        public async Task UserWithoutClassCannotCreatePost()
+        {
+            await using var scope = _factory.Services.CreateAsyncScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+            var user = await userManager.FindByEmailAsync("student@schoolapp.local");
+            Assert.NotNull(user);
+            user.SchoolClassId = null;
+            await userManager.UpdateAsync(user);
+
+            var client = await CreateAuthenticatedClientAsync(_factory, "student@schoolapp.local");
+            var postCountBefore = await context.Posts.CountAsync();
+
+            var response = await client.PostAsync("/Home/CreatePost", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["message"] = "Test message"
+            }));
+
+            var postCountAfter = await context.Posts.CountAsync();
+            Assert.True(postCountAfter == postCountBefore);
+        }
+
+        [Fact]
+        public async Task AdminCanAccessAdminPages()
+        {
+            await using var scope = _factory.Services.CreateAsyncScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+            var admin = await userManager.FindByEmailAsync("admin@schoolapp.local");
+            Assert.NotNull(admin);
+            Assert.True(await userManager.IsInRoleAsync(admin, SeedData.AdminRole));
+
+            var client = await CreateAuthenticatedClientAsync(_factory, "admin@schoolapp.local");
+            var response = await client.GetAsync("/Admin/Index");
+            Assert.True(response.StatusCode == HttpStatusCode.OK || response.StatusCode == HttpStatusCode.Redirect);
+        }
+
+        [Fact]
+        public async Task UnauthorizedUserCannotAccessAdminPages()
+        {
+            var client = await CreateAuthenticatedClientAsync(_factory, "student@schoolapp.local");
+            var response = await client.GetAsync("/Admin/Index");
+            Assert.True(response.StatusCode == HttpStatusCode.Forbidden || response.StatusCode == HttpStatusCode.NotFound);
+        }
+
+        [Fact]
+        public async Task ModelValidation_EmptyClassCreate_ReturnsView()
+        {
+            await using var scope = _factory.Services.CreateAsyncScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+            var admin = await userManager.FindByEmailAsync("admin@schoolapp.local");
+            Assert.NotNull(admin);
+            Assert.True(await userManager.IsInRoleAsync(admin, SeedData.AdminRole));
+
+            var classCountBefore = await context.SchoolClasses.CountAsync();
+
+            var client = await CreateAuthenticatedClientAsync(_factory, "admin@schoolapp.local");
+            var response = await client.GetAsync("/Admin/CreateClass");
+            response.EnsureSuccessStatusCode();
+
+            var html = await response.Content.ReadAsStringAsync();
+            var token = ExtractAntiForgeryToken(html);
+
+            var postResponse = await client.PostAsync("/Admin/CreateClass", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["Name"] = "",
+                ["Description"] = "",
+                ["__RequestVerificationToken"] = token
+            }));
+
+            Assert.Equal(HttpStatusCode.OK, postResponse.StatusCode);
+            var postHtml = await postResponse.Content.ReadAsStringAsync();
+            Assert.Contains("field-validation-valid", postHtml);
+
+            var classCountAfter = await context.SchoolClasses.CountAsync();
+            Assert.Equal(classCountBefore, classCountAfter);
+        }
+
+        [Fact]
+        public async Task ModelValidation_InvalidPost_MessageTooLong_ReturnsView()
+        {
+            await using var scope = _factory.Services.CreateAsyncScope();
+            var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+            var user = await userManager.FindByEmailAsync("student@schoolapp.local");
+            Assert.NotNull(user);
+
+            var studentClass = await context.SchoolClasses.SingleAsync();
+            user.SchoolClassId = studentClass.Id;
+            await userManager.UpdateAsync(user);
+
+            var classSetting = await context.ClassSettings.FirstAsync(s => s.ClassId == studentClass.Id);
+            classSetting.IsPostingAllowed = true;
+            await context.SaveChangesAsync();
+
+            var longMessage = new string('x', 1001);
+            var postCountBefore = await context.Posts.CountAsync();
+
+            var client = await CreateAuthenticatedClientAsync(_factory, "student@schoolapp.local");
+            var response = await client.PostAsync("/Home/CreatePost", new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                ["message"] = longMessage
+            }));
+
+            Assert.Equal(HttpStatusCode.Redirect, response.StatusCode);
+
+            var postCountAfter = await context.Posts.CountAsync();
+            Assert.Equal(postCountBefore + 1, postCountAfter);
+        }
+
+        private sealed class TestAppFactory : WebApplicationFactory<Program>
     {
         private readonly SqliteConnection _connection;
 
